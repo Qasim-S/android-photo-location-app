@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">PicLoc</string>
+    <string name="floating_action_button_location">Get Location Button</string>
+    <string name="floating_action_button_camera">Take Photo Button</string>
+    <string name="floating_action_button_save">Save to DB Button</string>
+</resources>
