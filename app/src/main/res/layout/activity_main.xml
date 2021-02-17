@@ -6,6 +6,21 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <com.denzcoskun.imageslider.ImageSlider
+        android:id="@+id/slider"
+        android:layout_width="match_parent"
+        android:layout_height="210dp"
+        android:layout_marginTop="203dp"
+        app:auto_cycle="true"
+        app:corner_radius="5"
+        app:delay="0"
+        app:error_image="@drawable/background_gry"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:period="1000"
+        app:placeholder="@drawable/background_gry"></com.denzcoskun.imageslider.ImageSlider>
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/floatingActionButtonCamera"
         android:layout_width="wrap_content"
