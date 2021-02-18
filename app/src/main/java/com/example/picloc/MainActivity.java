@@ -31,6 +31,8 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import static androidx.core.app.ActivityCompat.startActivityForResult;
+
 public class MainActivity extends AppCompatActivity {
 
     private FusedLocationProviderClient fusedLocationClient;
@@ -40,14 +42,6 @@ public class MainActivity extends AppCompatActivity {
     double longitude = 0.0;
     PicLocDbHelper dbHelper = new PicLocDbHelper(this);
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-    }
-
     private void dispatchTakePictureIntent() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         try {
@@ -55,6 +49,13 @@ public class MainActivity extends AppCompatActivity {
         } catch (ActivityNotFoundException e) {
             // display error state to the user
         }
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
     }
 
     @Override
