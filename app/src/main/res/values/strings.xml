@@ -3,4 +3,11 @@
     <string name="floating_action_button_location">Get Location Button</string>
     <string name="floating_action_button_camera">Take Photo Button</string>
     <string name="floating_action_button_save">Save to DB Button</string>
+    <string name="textViewLongitude">Longitude</string>
+    <string name="textViewLatitude">Latitude</string>
+    <string name="imageViewLocation">Image of a location</string>
+    <string name="textViewNoData">Nothing to show!</string>
+
+    <string name="yes">YES</string>
+    <string name="no">NO</string>
 </resources>

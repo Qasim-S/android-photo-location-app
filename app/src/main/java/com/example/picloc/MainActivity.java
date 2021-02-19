@@ -1,17 +1,22 @@
 package com.example.picloc;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.provider.BaseColumns;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,23 +31,62 @@ public class MainActivity extends AppCompatActivity {
 
     private static boolean LOCATION_HAS_BEEN_CAPTURED = false;
     private static boolean PHOTO_HAS_BEEN_TAKEN = false;
+    static final int REQUEST_IMAGE_CAPTURE = 1;
 
     private Bitmap image = null;
     double latitude = 0.0;
     double longitude = 0.0;
 
+    ArrayList<PicLocObject> photoList = null;
+
     PicLocDbHelper dbHelper = null;
+    RecyclerView rvPicLoc = null;
+    RecyclerView.Adapter dataAdapter = null;
+    TextView noData = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         dbHelper = new PicLocDbHelper(this);
-        refreshPhotoList();
+        noData = (TextView) findViewById(R.id.textViewNoData);
+
+        RecyclerViewClickListener listener = (view, position) -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Delete Entry")
+                    .setMessage("Are you sure you want to delete this entry?")
+
+                    // Specifying a listener allows you to take an action before dismissing the dialog.
+                    // The dialog is automatically dismissed when a dialog button is clicked.
+                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                           TextView id = (TextView) view.findViewById(R.id.textViewID);
+                           long ID = Long.parseLong(id.getText().toString());
+                           deleteFromDB(ID);
+                           photoList.remove(position);
+                           dataAdapter.notifyItemRemoved(position);
+                           loadPhotoList();
+                        }
+                    })
+
+                    // A null listener allows the button to dismiss the dialog and take no further action.
+                    .setNegativeButton(android.R.string.no, null)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
+        };
+
+        rvPicLoc = (RecyclerView) findViewById(R.id.recyclerViewPicLoc);
+        photoList = getData();
+        dataAdapter = new PicLocAdapter(photoList, listener);
+        rvPicLoc.setAdapter(dataAdapter);
+        rvPicLoc.setLayoutManager( new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+
+        loadPhotoList();
     }
 
     public void takePhoto(View v) {
-        PHOTO_HAS_BEEN_TAKEN = true;
+        dispatchTakePictureIntent();
     }
 
     public void getLocation(View v) {
@@ -52,8 +96,10 @@ public class MainActivity extends AppCompatActivity {
     public void savePhotoAndLocToDB(View v) {
         if(PHOTO_HAS_BEEN_TAKEN && LOCATION_HAS_BEEN_CAPTURED) {
             putInfoToDB();
+            photoList.add(photoList.size(), new PicLocObject(image, latitude, longitude, 0));
+            dataAdapter.notifyItemInserted(photoList.size()-1);
             showToast("Photo and location saved!");
-            refreshPhotoList();
+            loadPhotoList();
             PHOTO_HAS_BEEN_TAKEN = LOCATION_HAS_BEEN_CAPTURED = false;
         } else if (LOCATION_HAS_BEEN_CAPTURED) {
             showToast("Please take a photo to save along with the location!");
@@ -76,20 +122,30 @@ public class MainActivity extends AppCompatActivity {
         toast.show();
     }
 
-    private PicLocObject[] getData() {
+    private ArrayList<PicLocObject> getData() {
         return readInfoFromDB();
     }
 
-    private void refreshPhotoList() {
-        PicLocObject[] photoList = getData();
-        if(photoList.length > 0) {
-            RecyclerView rvPicLoc = (RecyclerView) findViewById(R.id.recyclerViewPicLoc);
-            rvPicLoc.setAdapter(new PicLocAdapter(photoList));
-            rvPicLoc.setLayoutManager( new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+    private void loadPhotoList() {
+        if(photoList.size() > 0) {
+            noData.setVisibility(View.INVISIBLE);
+            rvPicLoc.setVisibility(View.VISIBLE);
         } else {
-            TextView noData = (TextView) findViewById(R.id.textViewNoData);
             noData.setVisibility(View.VISIBLE);
+            rvPicLoc.setVisibility(View.INVISIBLE);
         }
+    }
+
+    private void deleteFromDB(long id) {
+        // Gets the data repository in write mode
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        // Define 'where' part of query.
+        String selection = PicLocContract.PicLoc._ID + " LIKE ?";
+        // Specify arguments in placeholder order.
+        String[] selectionArgs = { String.valueOf(id) };
+        // Issue SQL statement.
+        int deletedRows = db.delete(PicLocContract.PicLoc.TABLE_NAME, selection, selectionArgs);
     }
 
     private void putInfoToDB() {
@@ -111,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
         long newRowId = db.insert(PicLocContract.PicLoc.TABLE_NAME, null, values);
     }
 
-    private PicLocObject[] readInfoFromDB() {
+    private ArrayList<PicLocObject> readInfoFromDB() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
         // Define a projection that specifies which columns from the database
@@ -141,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
                 null               // The sort order
         );
 
-        List picLocObjects = new ArrayList<>();
+        ArrayList picLocObjects = new ArrayList<>();
         while(cursor.moveToNext()) {
             long itemId = cursor.getLong(
                     cursor.getColumnIndexOrThrow(PicLocContract.PicLoc._ID));
@@ -155,22 +211,32 @@ public class MainActivity extends AppCompatActivity {
             // Converts BLOB to Bitmap for display
             Bitmap bm = BitmapFactory.decodeByteArray(imageBLOB, 0 ,imageBLOB.length);
 
-            PicLocObject obj = new PicLocObject(bm, lat, lng);
+            PicLocObject obj = new PicLocObject(bm, lat, lng, itemId);
 
             picLocObjects.add(obj);
         }
         cursor.close();
 
-        return listToArray(picLocObjects);
+        return picLocObjects;
     }
 
-    private PicLocObject[] listToArray(List<PicLocObject> picLocObjects) {
-        PicLocObject[] arr = new PicLocObject[picLocObjects.size()];
+    private void dispatchTakePictureIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        try {
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+        } catch (ActivityNotFoundException e) {
+            // display error state to the user
+        }
+    }
 
-        // ArrayList to Array Conversion
-        for (int i = 0; i < picLocObjects.size(); i++)
-            arr[i] = picLocObjects.get(i);
-
-        return arr;
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            Bundle extras = data.getExtras();
+            Bitmap imageBitmap = (Bitmap) extras.get("data");
+            image = imageBitmap;
+            PHOTO_HAS_BEEN_TAKEN = true;
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.example.picloc;
 import android.graphics.Bitmap;
 
 public class PicLocObject {
+    long id;
     Bitmap photo;
     double latitude;
     double longitude;
@@ -10,12 +11,14 @@ public class PicLocObject {
     PicLocObject() {
         this.photo = null;
         this.latitude = this.longitude = 0.0;
+        id = 0;
     }
 
-    PicLocObject(Bitmap img, double lat, double lng) {
+    PicLocObject(Bitmap img, double lat, double lng, long id) {
         this.photo = img;
         this.latitude = lat;
         this.longitude = lng;
+        this.id = id;
     }
 
     public void setPhoto(Bitmap img) {
@@ -40,5 +43,13 @@ public class PicLocObject {
 
     public double getLongitude() {
         return this.longitude;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public long getId() {
+        return id;
     }
 }
