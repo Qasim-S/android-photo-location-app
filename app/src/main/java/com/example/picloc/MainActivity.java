@@ -1,139 +1,176 @@
 package com.example.picloc;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import android.Manifest;
-import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.location.Location;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.provider.MediaStore;
+import android.provider.BaseColumns;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
-
-import com.denzcoskun.imageslider.ImageSlider;
-import com.denzcoskun.imageslider.models.SlideModel;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import static androidx.core.app.ActivityCompat.startActivityForResult;
+import static android.widget.LinearLayout.HORIZONTAL;
 
 public class MainActivity extends AppCompatActivity {
 
-    private FusedLocationProviderClient fusedLocationClient;
-    static final int REQUEST_IMAGE_CAPTURE = 1;
-    Bitmap imageBitmap = null;
+    private static boolean LOCATION_HAS_BEEN_CAPTURED = false;
+    private static boolean PHOTO_HAS_BEEN_TAKEN = false;
+
+    private Bitmap image = null;
     double latitude = 0.0;
     double longitude = 0.0;
-    PicLocDbHelper dbHelper = new PicLocDbHelper(this);
 
-    private void dispatchTakePictureIntent() {
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        try {
-            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-        } catch (ActivityNotFoundException e) {
-            // display error state to the user
-        }
-    }
+    PicLocDbHelper dbHelper = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            Bundle extras = data.getExtras();
-            imageBitmap = (Bitmap) extras.get("data");
-        }
-    }
-
-    public void getLocation(View v) {
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-
-            return;
-        }
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        // Got last known location. In some rare situations this can be null.
-                        if (location != null) {
-                            // Logic to handle location object
-                            Context context = getApplicationContext();
-                            CharSequence text = "We have the location!\n";
-                            int duration = Toast.LENGTH_SHORT;
-
-                            Toast toast = Toast.makeText(context,
-                                    text + "Latitude: " + location.getLatitude() + "\n" + "Longitude: " + location.getLongitude(),
-                                    duration);
-                            toast.show();
-                            latitude = location.getLatitude();
-                            longitude = location.getLongitude();
-                        }
-                    }
-                });
+        dbHelper = new PicLocDbHelper(this);
+        refreshPhotoList();
     }
 
     public void takePhoto(View v) {
-        dispatchTakePictureIntent();
+        PHOTO_HAS_BEEN_TAKEN = true;
     }
 
-    private void saveToDB() {
+    public void getLocation(View v) {
+        LOCATION_HAS_BEEN_CAPTURED = true;
+    }
+
+    public void savePhotoAndLocToDB(View v) {
+        if(PHOTO_HAS_BEEN_TAKEN && LOCATION_HAS_BEEN_CAPTURED) {
+            putInfoToDB();
+            showToast("Photo and location saved!");
+            refreshPhotoList();
+            PHOTO_HAS_BEEN_TAKEN = LOCATION_HAS_BEEN_CAPTURED = false;
+        } else if (LOCATION_HAS_BEEN_CAPTURED) {
+            showToast("Please take a photo to save along with the location!");
+        } else if (PHOTO_HAS_BEEN_TAKEN) {
+            showToast("Please capture the location to save along with the photo!");
+        } else {
+            showToast("Please take a photo and capture the location to save!");
+        }
+    }
+
+    /***********************************************************************************************
+     * ********************************** HELPER METHODS *******************************************
+    * *********************************************************************************************/
+    private void showToast(String message) {
+        Context context = getApplicationContext();
+        CharSequence text = message;
+        int duration = Toast.LENGTH_SHORT;
+
+        Toast toast = Toast.makeText(context, text, duration);
+        toast.show();
+    }
+
+    private PicLocObject[] getData() {
+        return readInfoFromDB();
+    }
+
+    private void refreshPhotoList() {
+        PicLocObject[] photoList = getData();
+        if(photoList.length > 0) {
+            RecyclerView rvPicLoc = (RecyclerView) findViewById(R.id.recyclerViewPicLoc);
+            rvPicLoc.setAdapter(new PicLocAdapter(photoList));
+            rvPicLoc.setLayoutManager( new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        } else {
+            TextView noData = (TextView) findViewById(R.id.textViewNoData);
+            noData.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void putInfoToDB() {
         // Gets the data repository in write mode
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
-        // Create a new map of values, where column names are the keys
+        // Converts Bitmap to BLOB for storage in DB
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, bos);
-        byte[] bArray = bos.toByteArray();
+        image.compress(Bitmap.CompressFormat.PNG, 100, bos);
+        byte[] imageBLOB = bos.toByteArray();
 
+        // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
-        values.put(PicLocContract.PicLoc.COLUMN_NAME_PHOTO, bArray);
-        values.put(PicLocContract.PicLoc.COLUMN_NAME_LATITUDE, latitude);
+        values.put(PicLocContract.PicLoc.COLUMN_NAME_PHOTO, imageBLOB);
         values.put(PicLocContract.PicLoc.COLUMN_NAME_LONGITUDE, longitude);
+        values.put(PicLocContract.PicLoc.COLUMN_NAME_LATITUDE, latitude);
 
         // Insert the new row, returning the primary key value of the new row
         long newRowId = db.insert(PicLocContract.PicLoc.TABLE_NAME, null, values);
     }
 
-    public void savePhotoAndLocToDB(View v) {
-        if(imageBitmap != null) {
-            saveToDB();
-        } else {
-            Context context = getApplicationContext();
-            CharSequence text = "No Image!";
-            int duration = Toast.LENGTH_SHORT;
+    private PicLocObject[] readInfoFromDB() {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-            Toast toast = Toast.makeText(context, text, duration);
-            toast.show();
+        // Define a projection that specifies which columns from the database
+        // you will actually use after this query.
+        String[] projection = {
+                BaseColumns._ID,
+                PicLocContract.PicLoc.COLUMN_NAME_PHOTO,
+                PicLocContract.PicLoc.COLUMN_NAME_LONGITUDE,
+                PicLocContract.PicLoc.COLUMN_NAME_LATITUDE
+        };
+
+        // Filter results WHERE "title" = 'My Title'
+        String selection = "";
+        String[] selectionArgs = { };
+
+        // How you want the results sorted in the resulting Cursor
+        String sortOrder =
+                PicLocContract.PicLoc.COLUMN_NAME_LATITUDE + " DESC";
+
+        Cursor cursor = db.query(
+                PicLocContract.PicLoc.TABLE_NAME,   // The table to query
+                projection,             // The array of columns to return (pass null to get all)
+                null,              // The columns for the WHERE clause
+                null,          // The values for the WHERE clause
+                null,                   // don't group the rows
+                null,                   // don't filter by row groups
+                null               // The sort order
+        );
+
+        List picLocObjects = new ArrayList<>();
+        while(cursor.moveToNext()) {
+            long itemId = cursor.getLong(
+                    cursor.getColumnIndexOrThrow(PicLocContract.PicLoc._ID));
+            byte[] imageBLOB = cursor.getBlob(
+                    cursor.getColumnIndexOrThrow(PicLocContract.PicLoc.COLUMN_NAME_PHOTO));
+            double lat = cursor.getDouble(
+                    cursor.getColumnIndexOrThrow(PicLocContract.PicLoc.COLUMN_NAME_LATITUDE));
+            double lng = cursor.getDouble(
+                    cursor.getColumnIndexOrThrow(PicLocContract.PicLoc.COLUMN_NAME_LONGITUDE));
+
+            // Converts BLOB to Bitmap for display
+            Bitmap bm = BitmapFactory.decodeByteArray(imageBLOB, 0 ,imageBLOB.length);
+
+            PicLocObject obj = new PicLocObject(bm, lat, lng);
+
+            picLocObjects.add(obj);
         }
+        cursor.close();
+
+        return listToArray(picLocObjects);
+    }
+
+    private PicLocObject[] listToArray(List<PicLocObject> picLocObjects) {
+        PicLocObject[] arr = new PicLocObject[picLocObjects.size()];
+
+        // ArrayList to Array Conversion
+        for (int i = 0; i < picLocObjects.size(); i++)
+            arr[i] = picLocObjects.get(i);
+
+        return arr;
     }
 }

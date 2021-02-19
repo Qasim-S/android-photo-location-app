@@ -6,33 +6,15 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.denzcoskun.imageslider.ImageSlider
-        android:id="@+id/slider"
-        app:iss_auto_cycle="true"
-        app:iss_period="1000"
-        app:iss_delay="0"
-        android:layout_width="411dp"
-        android:layout_height="413dp"
-        android:layout_marginTop="135dp"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewPicLoc"
+        android:layout_width="305dp"
+        android:layout_height="510dp"
+        app:layout_constraintBottom_toTopOf="@+id/floatingActionButtonLocation"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"></com.denzcoskun.imageslider.ImageSlider>
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/floatingActionButtonCamera"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="40dp"
-        android:layout_marginEnd="40dp"
-        android:clickable="true"
-        android:contentDescription="@string/floating_action_button_camera"
-        android:focusable="true"
-        android:onClick="takePhoto"
-        app:layout_constraintBottom_toBottomOf="@+id/floatingActionButtonSave"
-        app:layout_constraintEnd_toStartOf="@+id/floatingActionButtonLocation"
-        app:layout_constraintStart_toEndOf="@+id/floatingActionButtonSave"
-        app:layout_constraintTop_toTopOf="@+id/floatingActionButtonLocation"
-        app:srcCompat="@android:drawable/ic_menu_camera" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/floatingActionButtonLocation"
@@ -61,4 +43,34 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:srcCompat="@android:drawable/ic_menu_save" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/floatingActionButtonCamera"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="40dp"
+        android:layout_marginEnd="40dp"
+        android:clickable="true"
+        android:contentDescription="@string/floating_action_button_camera"
+        android:focusable="true"
+        android:onClick="takePhoto"
+        app:layout_constraintBottom_toBottomOf="@+id/floatingActionButtonSave"
+        app:layout_constraintEnd_toStartOf="@+id/floatingActionButtonLocation"
+        app:layout_constraintStart_toEndOf="@+id/floatingActionButtonSave"
+        app:layout_constraintTop_toTopOf="@+id/floatingActionButtonLocation"
+        app:srcCompat="@android:drawable/ic_menu_camera" />
+
+    <TextView
+        android:id="@+id/textViewNoData"
+        android:layout_width="315dp"
+        android:layout_height="80dp"
+        android:text="@string/textViewNoData"
+        android:textAlignment="center"
+        android:textSize="36sp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
